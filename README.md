@@ -24,9 +24,9 @@ This project is to implement the container vector. A vector is a data structure 
 - void push_front(const T&) and void push_front(T&&) -- similar to push_back, but add the element to the front of the Vector
 - void pop_back(void) and (B) void pop_front(void) – if the array is empty, throw a std::out_of_range exception (with any reasonable string error message you want). Otherwise, destroy the object at the end (or beginning) of the array and update the length. This action will not reallocate storage, even if the vector becomes empty. It is possible that a vector can have available capacity at both the front and back simultaneously. 
 
-Note :
-1. We implement amortized doubling whenever we increase the allocated space of your vector.
+####Note :
 
+1. We implement amortized doubling whenever we increase the allocated space of your vector.
 2. If a call to pop_back succeeds (does not throw an exception) and is followed immediately by a call to push_back, then we will not perform any memory allocations. More generally, if two or more consecutive calls to pop_back succeed and are followed by an equal number of calls to push_back, then no allocations are performed. Similarly if one or more successive calls to pop_front succeed and are followed immediately by an equal number of push_front calls, then no memory allocations are performed.
 
 
