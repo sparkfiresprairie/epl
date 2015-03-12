@@ -52,5 +52,6 @@ In this project we are asked to add some new functionality to our Vector<T> temp
 - Design our iterator so that it throws the exception epl::invalid_iterator whenever the value of an invalid iterator is used. “Using the value” of an iterator includes comparison operations (with other iterators), dereferencing the iterator, incrementing the iterator, etc. Assigning to an iterator, for example, is not “using the value” of the iterator, it is assigning a new value to the iterator (and should not throw an exception).
 - epl::invalid_iterator has three severity levels: (a) If the iterator references a position that no longer exists (i.e., the old position is out-of-bounds), the exception you throw must use the level SEVERE. (b) If the iterator reference a position that is in-bounds, but the memory location for that position may have been changed (e.g., a reallocation has been performed because of a push_back, or a new assignment has been performed to the Vector), then the exception you throw must have the level MODERATE. (c) If the iterator is invalidated for any other reason, the exception must have the level MILD.
 
+For test purpose, all the staffs are squeezed into [Vector.h](./lab1/Vector.h) file.
 
 
