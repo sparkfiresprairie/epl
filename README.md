@@ -9,7 +9,7 @@ Project1. Vector Container Basics and Extensions
 ###Part1 - Basics
 This project is to implement the container vector. A vector is a data structure that provides O(1) random access (via an operator[]), and amortized constant append (via push_back). Our vector differs from the standard library vector in three minor ways. We are not required to implement all of the C++ standard functions, our operator[] performs bounds checking, and we have to implement a “push_front” and “pop_front”.
 
-Method List:
+####Method List:
 
 - vector(void) – creates an array with some minimum capacity (8 is fine) and length equal to zero. Must not use T::T(void). In fact, as long as Vector::Vector(int) is not called, we shall never use T::T(void)
 - explicit Vector(uint64_t n) – create an array with capacity and length exactly equal to n. Initialize the n objects using T::T(void). As a special case, if n is equal to zero, you can duplicate the behavior of vector(void).
@@ -26,4 +26,8 @@ Method List:
 
 Note :
 1. We implement amortized doubling whenever we increase the allocated space of your vector.
+
 2. If a call to pop_back succeeds (does not throw an exception) and is followed immediately by a call to push_back, then we will not perform any memory allocations. More generally, if two or more consecutive calls to pop_back succeed and are followed by an equal number of calls to push_back, then no allocations are performed. Similarly if one or more successive calls to pop_front succeed and are followed immediately by an equal number of push_front calls, then no memory allocations are performed.
+
+
+
