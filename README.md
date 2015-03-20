@@ -1,4 +1,4 @@
-Engineering Programming Language Project Discription
+Engineering Programming Language Project Description
 ====================================================
 Instructor: Prof. Craig Chase
 
