@@ -6,10 +6,6 @@
 //  Copyright (c) 2015 Engineering Programming Language. All rights reserved.
 //
 
-
-
-
-
 #include <iostream>
 #include <utility>
 class HotPotato {
@@ -50,7 +46,7 @@ public:
     }
     ~Container() {
         delete pot;
-        std::cout << "~Container" << std::endl;
+        std::cout << "~Container()" << std::endl;
     }
 };
 
