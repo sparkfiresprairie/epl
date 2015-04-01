@@ -12,9 +12,13 @@
 #include <typeinfo>
 
 
+template <typename T>
+struct CompThing {
+    bool operator()(const T& x, const T& y) { return x < y; }
+};
 
-template <typename I>
-typename std::iterator_traits<I>::value_type findMax(I ib, I ie) {
+template <typename I, typename C = CompThing<typename std::iterator_traits<I>::value_type>>
+typename std::iterator_traits<I>::value_type findMax(I ib, I ie, C f) {
     using T = typename std::iterator_traits<I>::value_type;
     T max = *ib;
     for (auto i = ib; i != ie ; i++) {
@@ -25,10 +29,11 @@ typename std::iterator_traits<I>::value_type findMax(I ib, I ie) {
     return max;
 }
 
-template <typename T>
-struct CompThing {
-    bool operator()(const T& x, const T& y) { return x < y; }
-};
+template <typename I>
+typename std::iterator_traits<I>::value_type findMax(I ib, I ie) {
+    using value_type = typename std::iterator_traits<I>::value_type;
+    return findMax(ib, ie, CompThing<value_type>{});
+}
 
 int main() {
     int a[] = {3,1,0,0,1,0,4,6,4,2};
