@@ -68,7 +68,7 @@ This project is to implement the container epl::valarray. A valarray is essentia
   2. If the two operands are of differing length, the length of the result should be the minimun of the lengths of the two operands (ignore values past the end of the longer operand).
   3. If one of the operands is a scalar, you should add (or whatever operation is implied) that scalar value to each of the elements in the valarray. In other words, you should implicitly expand the scalar to be a valarray of the appropriate length. But DON'T actually create this implied valarray.
   4. If x,y,z,w are valarrays, optimize the execution of statements like z = ( x * y ) + w so that only one loop gets executed and no temporary arrays are allocated.
-  5. Type promotion should be to the strictest type acceptable for the operation to occur – e.g., if a valarray<int> is added to a complex<float> the result should be a valarray<complex<float>>. If a valarray<double> is added to a complex<float> then the result should be a valarray<complex<double>>.
+  5. Type promotion should be to the strictest type acceptable for the operation to occur – e.g., if a valarray<int> is added to a complex<float> the result should be a valarray<complex<float>>. If a valarray<double> is added to a complex<float> then the result should be a valarray\<complex\<double\>\>.
 
 
 
