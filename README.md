@@ -52,7 +52,7 @@ In this project we are asked to add some new functionality to our Vector\<T\> te
 - Design our iterator so that it throws the exception epl::invalid_iterator whenever the value of an invalid iterator is used. “Using the value” of an iterator includes comparison operations (with other iterators), dereferencing the iterator, incrementing the iterator, etc. Assigning to an iterator, for example, is not “using the value” of the iterator, it is assigning a new value to the iterator (and should not throw an exception).
 - epl::invalid_iterator has three severity levels: (a) If the iterator references a position that no longer exists (i.e., the old position is out-of-bounds), the exception you throw must use the level SEVERE. (b) If the iterator reference a position that is in-bounds, but the memory location for that position may have been changed (e.g., a reallocation has been performed because of a push_back, or a new assignment has been performed to the Vector), then the exception you throw must have the level MODERATE. (c) If the iterator is invalidated for any other reason, the exception must have the level MILD.
 
-For test purpose, all the staffs are squeezed into [Vector.h](./lab1/Vector.h) file.
+Here is how I implemented [Vector.h](./lab1/Vector.h).
 
 Project2. Valarray with Expression Templates
 ------------------------------------------------
@@ -69,3 +69,5 @@ This project is to implement the container epl::valarray. A valarray is essentia
   3. If one of the operands is a scalar, you should add (or whatever operation is implied) that scalar value to each of the elements in the valarray. In other words, you should implicitly expand the scalar to be a valarray of the appropriate length. But DON'T actually create this implied valarray.
   4. If x,y,z,w are valarrays, optimize the execution of statements like z = ( x * y ) + w so that only one loop gets executed and no temporary arrays are allocated.
   5. Type promotion should be to the strictest type acceptable for the operation to occur – e.g., if a valarray\<int\> is added to a complex\<float\> the result should be a valarray\<complex\<float\>\>. If a valarray<double> is added to a complex\<float\> then the result should be a valarray\<complex\<double\>\>.
+
+Here is how I implemented [Valarray.h](./lab2/Valarray.h).
