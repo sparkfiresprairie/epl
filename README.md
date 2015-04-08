@@ -14,8 +14,8 @@ This project is to implement the container vector. A vector is a data structure 
 
 - vector(void) – creates an array with some minimum capacity (8 is fine) and length equal to zero. Must not use T::T(void). In fact, as long as Vector::Vector(int) is not called, we shall never use T::T(void)
 - explicit Vector(uint64_t n) – create an array with capacity and length exactly equal to n. Initialize the n objects using T::T(void). As a special case, if n is equal to zero, you can duplicate the behavior of vector(void).
-- copy and move constructors for vector<T> arguments
-- copy and move assignment operators for vector<T> arguments
+- copy and move constructors for vector\<T\> arguments
+- copy and move assignment operators for vector\<T\> arguments
 - destructor
 - uint64_t size(void) const – return the number of constructed objects in the vector
 - T& operator[](uint64_t k) – if k is out of bounds (equal to or larger than length), then we will throw std::out_of_range(“subscript out of range”). If k is in bounds, then we return a reference to the element at position k
@@ -33,14 +33,14 @@ This project is to implement the container vector. A vector is a data structure 
 
 ###Part2 - Extensions
 
-In this project we are asked to add some new functionality to our Vector<T> template class, making it more compliant with the C++ standard, and applying some of the additional knowledge we’ve gained about templates.
+In this project we are asked to add some new functionality to our Vector\<T\> template class, making it more compliant with the C++ standard, and applying some of the additional knowledge we’ve gained about templates.
 
 ####Requirement:
 
 - Create a random-access iterator type for our Vector.
 - Write an emplace_back variadic member template function for our vector that constructs the object in place.
 - Create a member template constructor that takes an iterator pair b and e and initializes the Vector to contain copies of the values from [b, e).
-- Create a constructor that will initialize a Vector from a std::initializer_list<T>
+- Create a constructor that will initialize a Vector from a std::initializer_list\<T\>
 
 ####Note:
 1. For iterators, specific requirements are as follows
@@ -68,7 +68,7 @@ This project is to implement the container epl::valarray. A valarray is essentia
   2. If the two operands are of differing length, the length of the result should be the minimun of the lengths of the two operands (ignore values past the end of the longer operand).
   3. If one of the operands is a scalar, you should add (or whatever operation is implied) that scalar value to each of the elements in the valarray. In other words, you should implicitly expand the scalar to be a valarray of the appropriate length. But DON'T actually create this implied valarray.
   4. If x,y,z,w are valarrays, optimize the execution of statements like z = ( x * y ) + w so that only one loop gets executed and no temporary arrays are allocated.
-  5. Type promotion should be to the strictest type acceptable for the operation to occur – e.g., if a valarray<int> is added to a complex<float> the result should be a valarray<complex<float>>. If a valarray<double> is added to a complex<float> then the result should be a valarray\<complex\<double\>\>.
+  5. Type promotion should be to the strictest type acceptable for the operation to occur – e.g., if a valarray\<int\> is added to a complex\<float\> the result should be a valarray\<complex\<float\>\>. If a valarray<double> is added to a complex\<float\> then the result should be a valarray\<complex\<double\>\>.
 
 
 
