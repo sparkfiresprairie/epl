@@ -63,6 +63,21 @@ This project is to implement the container epl::valarray. A valarray is essentia
 2. Lazy evaluation of expressions (using expression templates) are requred.
 3. A result of the appropriate type is provided when valarrays with different element types are used. 
 
+###Function Lists:
+You must define the following operations:
+1. push_back--inherited
+2. pop_back--inherited
+3. operator[] -- inherited
+4. appropriate iterator and const_iterator classes (and begin/end functions) -- inherited
+5. the binary operators *,/,-,+
+6. a unary - (arithmetic negation)
+7. all necessary functions to convert from one valarray type to another
+8. a constructor that takes an initial size -- inherited
+9. a sum() function that adds all elements in the valarray using standard addition
+10. an accumulate function that adds all elements in the valarray using the given function object
+11. an apply member function that takes a unary function argument and returns (conceptually) a new valarray where the function has been applied to each element in the valarray. Of course, this apply method must follow all the rules for lazy evaluation (i.e., it won’t return a real valarray, but rather some sort of expression template).
+12. a sqrt member function that is implemented by passing a sqrt function object to the apply member function. The element type created from sqrt will either be double (for input valarrays that were int, float or double originally), or will be std::complex<double> for valarrays that were originally std::complex<float> or std::complex<double> originally.
+
 ###General Notes:
   1. The statement: z = x op y should set z[k] = x[k] op y[k] for all k and for any binary operator op. A reasonable subset of the binary and unary operators must be supported.
   2. If the two operands are of differing length, the length of the result should be the minimun of the lengths of the two operands (ignore values past the end of the longer operand).
