@@ -64,7 +64,6 @@ This project is to implement the container epl::valarray. A valarray is essentia
 3. A result of the appropriate type is provided when valarrays with different element types are used. 
 
 ###Function Lists:
-You must define the following operations:
 1. push_back--inherited
 2. pop_back--inherited
 3. operator[] -- inherited
