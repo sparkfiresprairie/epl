@@ -1,728 +1,491 @@
-#ifndef _VECTOR_H_
-#define _VECTOR_H_
+// Vector.h -- header file for Vector data structure project
 
+#pragma once
+#ifndef _Vector_h
+#define _Vector_h
 #include <cstdint>
+#include <iostream>
 #include <stdexcept>
 #include <utility>
-#include <iterator>
-
-//Utility gives std::rel_ops which will fill in relational
-//iterator operations so long as you provide the
-//operators discussed in class.  In any case, ensure that
-//all operations listed in this website are legal for your
-//iterators:
-//http://www.cplusplus.com/reference/iterator/RandomAccessIterator/
-using namespace std::rel_ops;
-
 namespace epl{
     
-    class invalid_iterator {
-    public:
-        enum SeverityLevel {SEVERE,MODERATE,MILD,WARNING};
-        SeverityLevel level;
-        
-        invalid_iterator(SeverityLevel level = SEVERE){ this->level = level; }
-        virtual const char* what() const {
-            switch(level){
-                case WARNING:   return "Warning"; // not used in Spring 2015
-                case MILD:      return "Mild";
-                case MODERATE:  return "Moderate";
-                case SEVERE:    return "Severe";
-                default:        return "ERROR"; // should not be used
-            }
-        }
-    };
+class invalid_iterator {
+public:
+    enum SeverityLevel {SEVERE,MODERATE,MILD,WARNING};
+    SeverityLevel level;
     
-    template <typename T>
-    class vector {
-        using Same = vector<T>;
-        static constexpr uint64_t MINIMUMCAPACITY = 8;
-    private:
-        T* dataBegin;
-        T* dataEnd;
-        T* capacityBegin;
-        T* capacityEnd;
-        
-        uint64_t length() const {
-            return (((uint64_t)dataEnd - (uint64_t)dataBegin)/sizeof(T));
+    invalid_iterator(SeverityLevel level = SEVERE){ this->level = level; }
+    virtual const char* what() const {
+        switch(level){
+            case WARNING:   return "Warning"; // not used in Spring 2015
+            case MILD:      return "Mild";
+            case MODERATE:  return "Moderate";
+            case SEVERE:    return "Severe";
+            default:        return "ERROR"; // should not be used
         }
-        
-        uint64_t capacity() const {
-            return (((uint64_t)capacityEnd - (uint64_t)capacityBegin)/sizeof(T));
-        }
-        
-        void create() {
-            dataBegin = dataEnd = capacityBegin = (T*) ::operator new( MINIMUMCAPACITY * sizeof(T) );
-            capacityEnd = capacityBegin + MINIMUMCAPACITY;
-        }
-        
-        void create(const uint64_t& n) {
-            if (n == 0) { create(); }
-            else {
-                dataBegin = dataEnd = capacityBegin = (T*) ::operator new( n * sizeof(T) );
-                capacityEnd = capacityBegin + n;
-                for (uint64_t k = 0; k < n; ++k) {
-                    new (dataEnd) T();
-                    ++dataEnd;
-                }
-            }
-        }
-        
-        void destroy() {
-            while (dataEnd != dataBegin) {
-                --dataEnd;
-                dataEnd -> ~T();
-            }
-            ::operator delete(capacityBegin);
-        }
-        
-        void copy(const Same &that) {
-            capacityBegin = (T*) ::operator new( (that.capacity()) * sizeof(T) );
-            capacityEnd = capacityBegin + (that.capacity());
-            dataBegin = dataEnd = capacityBegin + (that.dataBegin - that.capacityBegin);
-            for (uint64_t k = 0; k < (that.length()); ++k) {
-                new (dataEnd) T{ that.dataBegin[k] };
-                ++dataEnd;
-            }
-        }
-        
-        void move(Same &&that) {
-            capacityBegin = that.capacityBegin;
-            capacityEnd = that.capacityEnd;
-            dataBegin = that.dataBegin;
-            dataEnd = that.dataEnd;
-            that.capacityBegin = that.capacityEnd = that.dataBegin = that.dataEnd = nullptr;
-        }
-    public:
-        /* (A) creates an array with some minimum capacity (8 is fine) and length equal to zero */
-        vector(void) { create(); initVersionNumber(); }
-        
-        /* (A) create an array with capacity and length exactly equal to n */
-        explicit vector(uint64_t n) { create(n); initVersionNumber(); }
-        
-        /* (A) copy constructors for vector<T> arguments (same type) */
-        vector(const Same &that) { copy(that); initVersionNumber(); }
-        
-        /* (B) move constructors for vector<T> arguments (same type) */
-        vector(Same &&that) {
-            this -> move(std::move(that));
-            initVersionNumber();
-        }
-        
-        /* (A) copy assignment operators for vector<T> arguments (same type) */
-        vector& operator=(const Same &rhs){
-            if (this != &rhs) {
-                destroy();
-                copy(rhs);
-                versionNumber[VECTOR_ASSIGNMENT] += 1;
-            }
-            return *this;
-        }
-        
-        vector& operator=(Same &&rhs) {
-            if (this != &rhs) {
-                destroy();
-                this -> move(std::move(rhs));
-                versionNumber[VECTOR_ASSIGNMENT] += 1;
-            }
-            return *this;
-        }
-        
-        /* (A) destructor */
-        ~vector(void) { destroy(); }
-        
-        /* (A) return the number of constructed objects in the vector */
-        uint64_t size(void) const { return length(); }
-        
-        /* (A) if k is out of bounds (equal to or larger than length), then you must throw std::out_of_range(“subscript out of range”); or similar error message (the string is arbitrary). If k is in bounds, then you must return a reference to the element at position k */
-        T& operator[](uint64_t k) {
-            if (k >= length()) {
-                throw std::out_of_range{"index out of range"};
-            }
-            return dataBegin[k];
-        }
-        
-        /* (A*) same as above, except for constants */
-        const T& operator[](uint64_t k) const {
-            if (k >= length()) {
-                throw std::out_of_range{"index out of range"};
-            }
-            return dataBegin[k];
-        }
-        
-        /* (A) add a new value to the end of the array, using amortized doubling if the array has to be resized. Copy construct the argument. */
-        void push_back(const T& element) {
-            if (dataEnd == capacityEnd) {
-                T* newCapacityBegin = (T*) ::operator new( 2 * capacity() * sizeof(T) );
-                T* newCapacityEnd = newCapacityBegin + 2 * capacity();
-                T* newDataBegin = newCapacityBegin + capacity();
-                T* newDataEnd = newDataBegin;
-                
-                new (newDataEnd) T{ element };
-                ++newDataEnd;
-                
-                for (uint64_t k = 0; k < length(); ++k) {
-                    --newDataBegin;
-                    new (newDataBegin) T{ std::move(dataBegin[length()-k-1]) };
-                }
-                
-                destroy();
-                
-                dataBegin = newDataBegin;
-                dataEnd = newDataEnd;
-                capacityBegin = newCapacityBegin;
-                capacityEnd = newCapacityEnd;
-                
-                versionNumber[MEMORY_ALLOCATION] += 1;
-            }
-            else {
-                new (dataEnd) T{ element };
-                ++dataEnd;
-                
-                versionNumber[NORMAL_PUSH_OR_POP] += 1;
-            }
-        }
-        
-        /* (B) same as above, but move construct the argument. */
-        void push_back(T&& element) {
-            if (dataEnd == capacityEnd) {
-                T* newCapacityBegin = (T*) ::operator new( 2 * capacity() * sizeof(T) );
-                T* newCapacityEnd = newCapacityBegin + 2 * capacity();
-                T* newDataBegin = newCapacityBegin + capacity();
-                T* newDataEnd = newDataBegin;
-                
-                new (newDataEnd) T{ std::move(element) };
-                ++newDataEnd;
-                
-                for (uint64_t k = 0; k < length(); ++k) {
-                    --newDataBegin;
-                    new (newDataBegin) T{ std::move(dataBegin[length()-k-1]) };
-                }
-                
-                destroy();
-                
-                dataBegin = newDataBegin;
-                dataEnd = newDataEnd;
-                capacityBegin = newCapacityBegin;
-                capacityEnd = newCapacityEnd;
-                
-                versionNumber[MEMORY_ALLOCATION] += 1;
-            }
-            else {
-                new (dataEnd) T{ std::move(element) };
-                ++dataEnd;
-                versionNumber[NORMAL_PUSH_OR_POP] += 1;
-            }
-        }
-        
-        /* (A* or B) similar to push_back, but add the element to the front of the Vector */
-        void push_front(const T& element) {
-            if (dataBegin == capacityBegin) {
-                T* newCapacityBegin = (T*) ::operator new( 2 * capacity() * sizeof(T) );
-                T* newCapacityEnd = newCapacityBegin + 2 * capacity();
-                T* newDataBegin = newCapacityBegin + capacity();
-                T* newDataEnd = newDataBegin;
-                
-                --newDataBegin;
-                new (newDataBegin) T{ element };
-                
-                for (uint64_t k = 0; k < length(); ++k) {
-                    new (newDataEnd) T{ std::move(dataBegin[k]) };
-                    ++newDataEnd;
-                }
-                
-                destroy();
-                
-                dataBegin = newDataBegin;
-                dataEnd = newDataEnd;
-                capacityBegin = newCapacityBegin;
-                capacityEnd = newCapacityEnd;
-                versionNumber[MEMORY_ALLOCATION] += 1;
-            }
-            else {
-                --dataBegin;
-                new (dataBegin) T{ element };
-                versionNumber[NORMAL_PUSH_OR_POP] += 1;
-            }
-            
-        }
-        
-        /* (B) same as above, but move construct the argument. */
-        void push_front(T&& element) {
-            if (dataBegin == capacityBegin) {
-                T* newCapacityBegin = (T*) ::operator new( 2 * capacity() * sizeof(T) );
-                T* newCapacityEnd = newCapacityBegin + 2 * capacity();
-                T* newDataBegin = newCapacityBegin + capacity();
-                T* newDataEnd = newDataBegin;
-                
-                for (uint64_t k = 0; k < length(); ++k) {
-                    new (newDataEnd) T{ std::move(dataBegin[k]) };
-                    ++newDataEnd;
-                }
-                
-                --newDataBegin;
-                new (newDataBegin) T{ std::move(element) };
-                destroy();
-                
-                dataBegin = newDataBegin;
-                dataEnd = newDataEnd;
-                capacityBegin = newCapacityBegin;
-                capacityEnd = newCapacityEnd;
-                
-                versionNumber[MEMORY_ALLOCATION] += 1;
-            }
-            else {
-                --dataBegin;
-                new (dataBegin) T{ std::move(element) };
-                
-                versionNumber[NORMAL_PUSH_OR_POP] += 1;
-            }
-            
-        }
-        
-        /* (A) if the array is empty, throw a std::out_of_range exception (with any reasonable string error message you want). Otherwise, destroy the object at the end (or beginning) of the array and update the length (and any pointers you need). Do not reallocate storage, even if the vector becomes empty. Obviously, the available capacity increases by one. It is possible that a vector can have available capacity at both the front and back simultaneously. */
-        void pop_back(void) {
-            if (!length()) {
-                throw std::out_of_range{"fatal error: popping from an empty vector"};
-            }
-            --dataEnd;
-            dataEnd -> ~T();
-            versionNumber[NORMAL_PUSH_OR_POP] += 1;
-        }
-        
-        void pop_front(void) {
-            if (!length()) {
-                throw std::out_of_range{"fatal error: popping from an empty vector"};
-            }
-            dataBegin -> ~T();
-            ++dataBegin;
-            versionNumber[NORMAL_PUSH_OR_POP] += 1;
-        }
-        /* Phase C */
-    public:
-        enum VersionNumber {
-            NORMAL_PUSH_OR_POP,             // push or pop with memory allocation, MILD
-            VECTOR_ASSIGNMENT,              // vector assignment occurs, MODERATE
-            MEMORY_ALLOCATION,              // memory allocation occurs, MODERATE
-            VERSION_NUMBER_COUNT,           // number of events
-            OUT_OF_RANGE,                   // SEVERE
-            DIFFERENT_VECTOR,               // different vectors, SEVERE
-            NULLPTR_VECTOR,                 // SEVERE
-            COMBINED_LEADING_TO_SEVERE,     // combined events leading to SEVERE
-            COMBINED_LEADING_TO_MODERATE,   // combined events leading to MODERATE
-            VALID                           // valid version
-        };
-        
-        uint64_t versionNumber[VERSION_NUMBER_COUNT];   // vector's version numbers
-        struct iterator;
-        struct const_iterator;
-        
-        /* constructor that will initialize a vector from a std::initializer_list<T> */
-        vector(std::initializer_list<T> list){
-            uint64_t size =list.size();
-            dataBegin = dataEnd = capacityBegin = (T*) ::operator new( size * sizeof(T) );
-            capacityEnd = capacityBegin + size;
-            for( auto it = list.begin(); it != list.end(); ++it ) {  *dataEnd= *it; ++dataEnd; }
-            initVersionNumber();
-        }
-        
-        /* template constructor */
-        template <typename IT>
-        vector(IT itb, IT ite){
-            typename std::iterator_traits<IT>::iterator_category itc;
-            initVector(itb, ite, itc);
-        }
-        
-        template <typename RAI>
-        void initVector(RAI itb, RAI ite, std::random_access_iterator_tag) {
-            uint64_t size = ite - itb;
-            dataBegin = dataEnd = capacityBegin = (T*) ::operator new( size * sizeof(T) );
-            capacityEnd = capacityBegin + size;
-            for(; itb != ite; ++itb) { *dataEnd = *itb; ++ dataEnd; }
-            initVersionNumber();
-        }
-        
-        template <typename II>
-        void initVector(II itb, II ite, std::input_iterator_tag) {
-            dataBegin = dataEnd = capacityBegin = capacityEnd = nullptr;
-            initVersionNumber();
-            for(; itb != ite; ++itb) { push_back(*itb); }
-        }
-        
-        void initVersionNumber() {
-            for( uint64_t i = 0; i< VERSION_NUMBER_COUNT; ++i ) versionNumber[i] = 0;
-        }
-        
-        /* begin and end function for vector */
-        iterator begin() {
-            iterator temp;
-            temp.vptr = this;
-            temp.offset = 0;
-            temp.versionNumber[NORMAL_PUSH_OR_POP] = this->versionNumber[NORMAL_PUSH_OR_POP];
-            temp.versionNumber[VECTOR_ASSIGNMENT] = this->versionNumber[VECTOR_ASSIGNMENT];
-            temp.versionNumber[MEMORY_ALLOCATION] = this->versionNumber[MEMORY_ALLOCATION];
-            return temp;
-        }
-        
-        iterator end() {
-            iterator temp;
-            temp.vptr = this;
-            temp.offset = length();
-            temp.versionNumber[NORMAL_PUSH_OR_POP] = this->versionNumber[NORMAL_PUSH_OR_POP];
-            temp.versionNumber[VECTOR_ASSIGNMENT] = this->versionNumber[VECTOR_ASSIGNMENT];
-            temp.versionNumber[MEMORY_ALLOCATION] = this->versionNumber[MEMORY_ALLOCATION];
-            return temp;
-        }
-        
-        const_iterator begin() const {
-            const_iterator temp;
-            temp.vptr = this;
-            temp.offset = 0;
-            temp.versionNumber[NORMAL_PUSH_OR_POP] = this->versionNumber[NORMAL_PUSH_OR_POP];
-            temp.versionNumber[VECTOR_ASSIGNMENT] = this->versionNumber[VECTOR_ASSIGNMENT];
-            temp.versionNumber[MEMORY_ALLOCATION] = this->versionNumber[MEMORY_ALLOCATION];
-            return temp;
-        }
+    }
+};
+    
+    
+template <typename T>
+class vector {
+private:
+    /*
+     * The element data is managed using four pointers
+     * capacity_begin : storage begin -- address of the start of the allocated storage
+     * capacity_end : storage end -- address (one after) the last storage location
+     * data_begin : data begin -- address of the first initialized element in the vector
+     * data_end : data end -- address (one after) the last initialized element in vector
+     */
+    T* data_begin;
+    T* data_end;
+    T* capacity_begin;
+    T* capacity_end;
+    uint64_t position_version;
+    uint64_t memory_version;
+    static constexpr uint64_t MINIMUMCAPACITY = 8;
+public:
+    vector(void) { create(); }
 
-        const_iterator end() const {
-            const_iterator temp;
-            temp.vptr = this;
-            temp.offset = length();
-            temp.versionNumber[NORMAL_PUSH_OR_POP] = this->versionNumber[NORMAL_PUSH_OR_POP];
-            temp.versionNumber[VECTOR_ASSIGNMENT] = this->versionNumber[VECTOR_ASSIGNMENT];
-            temp.versionNumber[MEMORY_ALLOCATION] = this->versionNumber[MEMORY_ALLOCATION];
-            return temp;
+    explicit vector(uint64_t n) { create(n); }
+    
+    vector(const vector<T>& that) { copy(that); }
+    
+    vector(vector<T>&& that) { move(std::move(that)); }
+    
+    vector& operator=(const vector<T>& rhs){
+        if (this != &rhs) {
+            destroy();
+            copy(rhs);
+        }
+        return *this;
+    }
+    
+    vector& operator=(vector<T>&& rhs) {
+        if (this != &rhs) {
+            destroy();
+            move(std::move(rhs));
+        }
+        return *this;
+    }
+    
+    template <typename IT>
+    vector(IT b, IT e) { construct_from_iterator(b, e, typename std::iterator_traits<IT>::iterator_category{}); }
+    
+    vector(std::initializer_list<T> il) : vector(il.begin(), il.end()) {}
+    
+    ~vector(void) { destroy(); }
+    
+    class iterator;
+    
+    class const_iterator {
+    private:
+        const vector<T>* parent;
+        uint64_t index;
+        uint64_t position_version;
+        uint64_t memory_version;
+        bool is_inbound;
+    public:
+        using iterator_category = std::random_access_iterator_tag;
+        using value_type = T;
+        using pointer = const T*;
+        using reference = const T&;
+        using difference_type = ptrdiff_t;
+        
+        friend vector<T>;
+        friend vector<T>::iterator;
+        
+        //  CopyConstructible, CopyAssignable, Destructible
+        const_iterator(): parent{nullptr}, index{0}, position_version{0}, memory_version{0}, is_inbound{true} {}
+        const_iterator(const const_iterator& that) { if (this != &that ) copy(that); }
+        const_iterator& operator=(const const_iterator& that) {
+            if (this != &that) copy(that);
+            return *this;
         }
         
-        template <typename TV>
-        struct iterator_base {
-            using iterator_category = std::random_access_iterator_tag;
-            using value_type = T;
-            using difference_type = ptrdiff_t;
-            using pointer = T*;
-            using reference = T&;
-            using Iterator_base = iterator_base<TV>;
-            
-            TV* vptr;
-            uint64_t offset;
-            uint64_t versionNumber[VERSION_NUMBER_COUNT];   // iterator's version numbers
-            
-            iterator_base() {
-                vptr = nullptr;
-                initVersionNumber(vptr);
-            }
-            
-            void initVersionNumber(TV* p) {
-                for ( uint64_t i = 0; i < VERSION_NUMBER_COUNT; ++i )
-                    versionNumber[i] = ( p == nullptr )? 0 : p->versionNumber[i];
-            }
-            
-            uint64_t checkRange() const {
-                if ( offset >= vptr->size() ) return OUT_OF_RANGE;
-                return VALID;
-            }
-            
-            uint64_t getValidType() const {
-                if (vptr == nullptr)
-                    return NULLPTR_VECTOR;
-                else if (vptr->versionNumber[MEMORY_ALLOCATION] != versionNumber[MEMORY_ALLOCATION])
-                    return MEMORY_ALLOCATION;
-                else if (vptr->versionNumber[VECTOR_ASSIGNMENT] != versionNumber[VECTOR_ASSIGNMENT])
-                    return VECTOR_ASSIGNMENT;
-                else if (vptr->versionNumber[NORMAL_PUSH_OR_POP] != versionNumber[NORMAL_PUSH_OR_POP])
-                    return NORMAL_PUSH_OR_POP;
-                else
-                    return VALID;
-            }
-            
-            uint64_t getValidType(const Iterator_base &it) const {
-                if (this->vptr != it.vptr)
-                    return DIFFERENT_VECTOR;
-                else
-                    return VALID;
-            }
-            
-            void checkException(uint64_t exceptionType) const {
-                switch ( exceptionType ) {
-                    case NULLPTR_VECTOR:
-                        std::cout << "NULLPTR_VECTOR" << std::endl;
-                        throw invalid_iterator(invalid_iterator::SEVERE);
-                        break;
-                    case OUT_OF_RANGE:
-                        std::cout << "OUT_OF_RANGE" << std::endl;
-                        throw invalid_iterator(invalid_iterator::SEVERE);
-                        break;
-                    case DIFFERENT_VECTOR:
-                        std::cout << "DIFFERENT_VECTOR" << std::endl;
-                        throw invalid_iterator(invalid_iterator::SEVERE);
-                        break;
-                    case MEMORY_ALLOCATION:
-                        std::cout << "MEMORY_ALLOCATION" << std::endl;
-                        throw invalid_iterator(invalid_iterator::MODERATE);
-                        break;
-                    case VECTOR_ASSIGNMENT:
-                        std::cout << "VECTOR_ASSIGNMENT" << std::endl;
-                        throw invalid_iterator(invalid_iterator::MODERATE);
-                        break;
-                    case NORMAL_PUSH_OR_POP:
-                        std::cout << "NORMAL_PUSH_OR_POP" << std::endl;
-                        throw invalid_iterator(invalid_iterator::MILD);
-                        break;
-                    case COMBINED_LEADING_TO_SEVERE:
-                        std::cout << "COMBINED_LEADING_TO_SEVERE" << std::endl;
-                        throw invalid_iterator(invalid_iterator::SEVERE);
-                        break;
-                    case COMBINED_LEADING_TO_MODERATE:
-                        std::cout << "COMBINED_LEADING_TO_MODERATE" << std::endl;
-                        throw invalid_iterator(invalid_iterator::MODERATE);
-                        break;
-                    default:
-                        break;
-                }
-            }
-            
-            void copy(const Iterator_base& rhs) {
-                rhs.checkException(rhs.getValidType());
-                vptr = rhs.vptr;
-                offset = rhs.offset;
-                initVersionNumber(rhs.vptr);
-            }
-            
-            iterator_base(const Iterator_base& rhs) {
-                if(this != &rhs)
-                    copy(rhs);
-            }
-            
-            Iterator_base& operator=(const Iterator_base& rhs) {
-                if(this != &rhs)
-                    copy(rhs);
-                return *this;
-            }
-            
-            bool operator==(const Iterator_base& rhs) const {
-                rhs.checkException(rhs.getValidType());
-                checkException(getValidType());
-                return (vptr == rhs.vptr && offset == rhs.offset);
-            }
-            
-            bool operator<(const Iterator_base& rhs) const {
-                rhs.checkException(rhs.getValidType());
-                checkException(getValidType());
-                return ((*this-rhs)<0)? true : false;
-            }
-            
-            bool operator!=(const Iterator_base& rhs) const {
-                const Iterator_base& lhs = *this;
-                return !(lhs == rhs);
-            }
-            
-            bool operator>(const Iterator_base& rhs) const {
-                const Iterator_base& lhs = *this;
-                return rhs < lhs;
-            }
-            
-            bool operator<=(const Iterator_base& rhs) const {
-                const Iterator_base& lhs = *this;
-                return !(rhs < lhs);
-            }
-            
-            bool operator>=(const Iterator_base& rhs) const {
-                const Iterator_base& lhs = *this;
-                return !(lhs < rhs);
-            }
-            
-            ptrdiff_t operator-(const Iterator_base& rhs) const {
-                rhs.checkException(rhs.getValidType());
-                checkException(getValidType());
-                return this->offset - rhs.offset;
-            }
-            
-            void iteratorInc(uint64_t i) {
-                offset += i;
-            }
-            
-            void iteratorDec(uint64_t i){
-                offset -= i;
-            }
-        };
-        
-        struct iterator : public iterator_base< vector<T> > {
-            using pointer = T*;
-            using reference = T&;
-            using Iterator_base = iterator_base< vector<T> >;
-            // ???
-            iterator() = default;
-            
-            operator const_iterator() {
-                return const_iterator(*this);
-            }
-            // ???
-            reference operator*() const {
-                Iterator_base::checkException(Iterator_base::checkRange());
-                Iterator_base::checkException(Iterator_base::getValidType());
-                return Iterator_base::vptr->at(this->offset);
-            }
-            // why temp, const
-            reference operator[](uint64_t i) const {
-                iterator temp = *this;
-                return *(temp += i);
-            }
-            // why pointer
-            pointer operator->() const {
-                Iterator_base::checkException(Iterator_base::checkRange());
-                Iterator_base::checkException(Iterator_base::getValidType());
-                return &(Iterator_base::vptr->at(this->offset));
-            }
-            // what is this here, a pointer to object iterator?
-            iterator operator+(uint64_t i) const {
-                iterator temp = *this;
-                return temp += i;
-            }
-            iterator operator-(uint64_t i) const {
-                iterator temp = *this;
-                return temp -= i;
-            }
-            // why const_iterator here
-            ptrdiff_t operator-(const const_iterator& it) const {
-                return Iterator_base::operator-(it);
-            }
-            // ++p
-            iterator& operator++() { return this->operator+=(1); }
-            iterator& operator--() { return this->operator-=(1); }
-            // p++
-            iterator operator++(int) {
-                Iterator_base::checkException(Iterator_base::getValidType());
-                iterator temp = *this;
-                ++(*this);
-                return temp;
-            }
-            iterator operator--(int) {
-                Iterator_base::checkException(Iterator_base::getValidType());
-                iterator temp = *this;
-                --(*this);
-                return temp;
-            }
-            
-            iterator& operator+=(uint64_t i) {
-                Iterator_base::checkException(Iterator_base::getValidType());
-                Iterator_base::iteratorInc(i);
-                return *this;
-            }
-            
-            iterator& operator-=(uint64_t i) {
-                Iterator_base::checkException(Iterator_base::getValidType());
-                Iterator_base::iteratorDec(i);
-                return *this;
-            }
-            
-            // why friend
-            friend iterator operator+(uint64_t i, const iterator& it) {
-                return it.operator+(i);
-            }
-            
-        };
-        
-        struct const_iterator : public iterator_base< const vector<T> > {
-            using pointer = const T*;
-            using reference = const T&;
-            using Iterator_base = iterator_base< const vector<T> >;
-            // ???
-            const_iterator()=default;
-            
-            const_iterator(const  iterator& rhs) {
-                rhs.checkException(rhs.getValidType());
-                this->vptr = rhs.vptr;
-                this->offset = rhs.offset;
-                Iterator_base::initVersionNumber(rhs.vptr);
-            }
-            // ???
-            reference operator*() const {
-                Iterator_base::checkException(Iterator_base::checkRange());
-                Iterator_base::checkException(Iterator_base::getValidType());
-                return Iterator_base::vptr->at(this->offset);
-            }
-            // why temp, const
-            reference operator[](uint64_t i) const {
-                const_iterator temp = *this;
-                return *(temp += i);
-            }
-            // why pointer
-            pointer operator->() const {
-                Iterator_base::checkException(Iterator_base::checkRange());
-                Iterator_base::checkException(Iterator_base::getValidType());
-                return &(Iterator_base::vptr->at(this->offset));
-            }
-            // what is this here, a pointer to object iterator?
-            const_iterator operator+(uint64_t i) const {
-                const_iterator temp = *this;
-                return temp += i;
-            }
-            const_iterator operator-(uint64_t i) const {
-                const_iterator temp = *this;
-                return temp -= i;
-            }
-            // why const_iterator here
-            ptrdiff_t operator-(const const_iterator& it) const {
-                return Iterator_base::operator-(it);
-            }
-            // ++p
-            const_iterator& operator++() { return this->operator+=(1); }
-            const_iterator& operator--() { return this->operator-=(1); }
-            // p++
-            const_iterator operator++(int) {
-                Iterator_base::checkException(Iterator_base::getValidType());
-                const_iterator temp = *this;
-                ++(*this);
-                return temp;
-            }
-            const_iterator operator--(int) {
-                Iterator_base::checkException(Iterator_base::getValidType());
-                const_iterator temp = *this;
-                --(*this);
-                return temp;
-            }
-            
-            const_iterator& operator+=(uint64_t i) {
-                Iterator_base::checkException(Iterator_base::getValidType());
-                Iterator_base::iteratorInc(i);
-                return *this;
-            }
-            
-            const_iterator& operator-=(uint64_t i) {
-                Iterator_base::checkException(Iterator_base::getValidType());
-                Iterator_base::iteratorDec(i);
-                return *this;
-            }
-            
-            // why friend
-            friend const_iterator operator+(uint64_t i, const const_iterator& it) {
-                return it.operator+(i);
-            }
-            
-        };
-        
-        // why two at
-        T& at(uint64_t k) {
-            if (k>=length()) {
-                throw std::out_of_range ("index out of range");
-            }
-            else {
-                return *(dataBegin+k);
-            }
+        // Forward Iterator: dereferenceable, incrementable, EqualityComparable
+        const T& operator*() const {
+            assert_iterator_is_valid();
+            return *(parent->data_begin + index);
+        }
+        const T* operator->() const {
+            assert_iterator_is_valid();
+            return parent->data_begin + index;
+        }//?????????
+        const_iterator& operator++() {
+            assert_iterator_is_valid();
+            ++index;
+            return *this;
+        }
+        const_iterator operator++(int) {
+            const_iterator t{*this};
+            this -> operator++();
+            return t;
+        }
+        bool operator==(const const_iterator& that) {
+            assert_iterator_is_valid();
+            return (this->parent == that.parent) && (this->index == that.index);
+        }
+        bool operator!=(const const_iterator& that) {
+            return !(*this == that);
         }
         
-        const T& at(uint64_t k) const {
-            if (k>=length()) {
-                throw std::out_of_range ("index out of range");
-            }
-            else {
-                return *(dataBegin+k);
-            }
+        //  Bidirectionary Iterator: decrementable
+        const_iterator& operator--() {
+            assert_iterator_is_valid();
+            --index;
+            return *this;
         }
-        
-        /*vector( const const_iterator & itb, const const_iterator &ite )*/
+        const_iterator operator--(int) {
+            const_iterator t{*this};
+            this -> operator--();
+            return t;
+        }
+       
+        // Random Access Iterator
+        const_iterator& operator+=(int64_t k) {
+            assert_iterator_is_valid();
+            index += k;
+            return *this;
+        }
+        const_iterator& operator-=(int64_t k) {
+            this->operator+=(-k);
+            return *this;
+        }
+        const_iterator operator+(int64_t k) const {
+            const_iterator temp{*this};
+            return temp += k;
+        }
+        const_iterator operator-(int64_t k) const {
+            const_iterator temp{*this};
+            return temp -= k;
+        }
+        const T& operator[](uint64_t k) const { return *(*this + k); }
+        int64_t operator-(const const_iterator& that) const {
+            assert_iterator_is_valid();
+            return this->index - that.index;
+        }
+        bool operator<(const const_iterator& that ) const { return (*this - that < 0) ? true : false; }
+        bool operator>(const const_iterator& that) const { return that < *this; }
+        bool operator>=(const const_iterator& that) const { return !( *this < that ); }
+        bool operator<=(const const_iterator& that) const { return !( *this > that ); }
+    private:
+        void copy(const const_iterator& that) {
+            parent = that.parent;
+            index = that.index;
+            position_version = that.position_version;
+            memory_version = that.memory_version;
+            is_inbound = ( that.index >= 0 && index < that.parent->size() );
+        }
+        const_iterator(const vector<T>* parent, uint64_t index, uint64_t position_version, uint64_t memory_version) {
+            this->parent = parent;
+            this->index = index;
+            this->position_version = position_version;
+            this->memory_version = memory_version;
+            is_inbound = ( index >= 0 && index < parent->size() );
+        }
+        void assert_iterator_is_valid() const {
+            uint64_t ipv = (*this).position_version;
+            uint64_t imv = (*this).memory_version;
+            uint64_t vpv = (*this).parent->position_version;
+            uint64_t vmv = (*this).parent->memory_version;
+            bool still_inbound = ( (*this).index >= 0 && (*this).index < (*this).parent->size() );
+            
+            if ( (*this).is_inbound && !still_inbound && ((imv!=vmv) || (ipv!=vpv)) )
+                throw invalid_iterator(invalid_iterator::SEVERE);
+            else if ( (*this).is_inbound && still_inbound && (imv!=vmv) )
+                throw invalid_iterator(invalid_iterator::MODERATE);
+            else if ( (ipv != vpv) || (imv != vmv) )
+                throw invalid_iterator(invalid_iterator::MILD);
+            else
+                return;
+        }
     };
     
+    class iterator : public const_iterator {
+    public:
+        using pointer = T*;
+        using reference = T&;
+        
+        friend vector<T>;
+        
+        //  CopyConstructible, CopyAssignable, Destructible
+        iterator() : const_iterator() {}
+        iterator(const iterator& that) { if (this != &that ) const_iterator::copy(that); }
+        iterator& operator=(const iterator& that) {
+            if (this != &that) const_iterator::copy(that);
+            return *this;
+        }
+        
+        // Forward Iterator: dereferenceable, incrementable, EqualityComparable
+        T& operator*() const {
+            return const_cast<T&>(const_iterator::operator*());
+        }
+        T* operator->() const {
+            return const_cast<T*>(const_iterator::operator->());
+        }
+        iterator& operator++() {
+            const_iterator::operator++();
+            return *this;
+        }
+        iterator operator++(int) {
+            iterator t{*this};
+            this->operator++();
+            return t;
+        }
+        
+        //  Bidirectionary Iterator: decrementable
+        iterator& operator--() {
+            const_iterator::operator--();
+            return *this;
+        }
+        
+        iterator operator--(int) {
+            iterator t{*this};
+            this->operator--();
+            return t;
+        }
+        
+        // Random Access Iterator
+        iterator& operator+=(int64_t k) {
+            const_iterator::operator+=(k);
+            return *this;
+        }
+        iterator& operator-=(int64_t k) {
+            this->operator+=(-k);
+            return *this;
+        }
+        iterator operator+(int64_t k) const {
+            iterator temp{*this};
+            return temp += k;
+        }
+        iterator operator-(int64_t k) const {
+            iterator temp{*this};
+            return temp -= k;
+        }
+        T& operator[](uint64_t k) const { return *(*this + k); }
+    private:
+        iterator(const vector<T>* parent, uint64_t index, uint64_t position_version, uint64_t memory_version) : const_iterator(parent, index, position_version, memory_version) {}
+    };
+    
+    // Member Function Group: Capacity
+    uint64_t size(void) const { return length(); }
+    
+    // Member Function Group: Element Access
+    T& operator[](uint64_t k) {
+        if (k >= length()) { throw std::out_of_range{"index out of range"}; }
+        return data_begin[k];
+    }
+    
+    const T& operator[](uint64_t k) const {
+        if (k >= length()) { throw std::out_of_range{"index out of range"}; }
+        return data_begin[k];
+    }
+    
+    // Member Function Group: Modifiers
+    void push_back(const T& element) {
+        // Since ensure_back_capacity will destroy original vector,
+        // if it is the element of original vector that is to be push_back
+        // a segmentation fault will occur. That's why I need a temp.
+        // Example:
+        // vector<vector<Foo>> x(8);
+        // x[0].push_front(Foo());
+        // x.push_back(x[0]);
+        T temp{element};
+        ensure_back_capacity(1);
+        new (data_end) T{ std::move(temp) };
+        ++data_end;
+        ++position_version;
+    }
+    
+    void push_back(T&& element) {
+        T temp{std::move(element)};
+        ensure_back_capacity(1);
+        new (data_end) T{ std::move(temp) };
+        ++data_end;
+        ++position_version;
+    }
+    
+    void push_front(const T& element) {
+        T temp{element};
+        ensure_front_capacity(1);
+        --data_begin;
+        new (data_begin) T{ std::move(temp) };
+        ++position_version;
+    }
+    
+    void push_front(T&& element) {
+        T temp{std::move(element)};
+        ensure_front_capacity(1);
+        --data_begin;
+        new (data_begin) T{ std::move(temp) };
+        ++position_version;
+    }
+    
+    void pop_back(void) {
+        if (!length()) { throw std::out_of_range{"fatal error: popping from an empty vector"}; }
+        --data_end;
+        data_end -> ~T();
+        ++position_version;
+    }
+    
+    void pop_front(void) {
+        if (!length()) { throw std::out_of_range{"fatal error: popping from an empty vector"}; }
+        data_begin -> ~T();
+        ++data_begin;
+        ++position_version;
+    }
+    
+    // Member Function Group: Iterators
+    const_iterator begin() const { return const_iterator(this, 0, position_version, memory_version); }
+    iterator begin() { return iterator(this, 0, position_version, memory_version); }
+    const_iterator end() const { return const_iterator(this, size(), position_version, memory_version); }
+    iterator end() { return iterator(this, size(), position_version, memory_version); }
+private:
+    uint64_t length() const { return data_end - data_begin; }
+    
+    uint64_t capacity() const { return capacity_end - capacity_begin; }
+    
+    void create() {
+        data_begin = data_end = capacity_begin = static_cast<T*>(operator new(MINIMUMCAPACITY * sizeof(T)));
+        capacity_end = capacity_begin + MINIMUMCAPACITY;
+        position_version = memory_version = 0;
+    }
+    
+    void create(const uint64_t& n) {
+        if (n == 0) { create(); }
+        else {
+            data_begin = data_end = capacity_begin = static_cast<T*>(operator new(n * sizeof(T)));
+            capacity_end = capacity_begin + n;
+            for (uint64_t k = 0; k < n; ++k) {
+                new (data_end) T();
+                ++data_end;
+            }
+            position_version = memory_version = 0;
+        }
+    }
+    
+    void destroy() {
+        while (data_end != data_begin) {
+            --data_end;
+            data_end -> ~T();
+        }
+        operator delete(capacity_begin);
+    }
+    
+    void copy(const vector<T>& that) {
+        capacity_begin = static_cast<T*>(operator new(that.capacity() * sizeof(T)));
+        capacity_end = capacity_begin + that.capacity();
+        data_begin = data_end = capacity_begin + (that.data_begin - that.capacity_begin);
+        for (uint64_t k = 0; k < that.length(); ++k) {
+            new (data_end) T{ that.data_begin[k] };
+            ++data_end;
+        }
+        ++memory_version;
+    }
+    
+    void move(vector<T>&& that) {
+        capacity_begin = that.capacity_begin;
+        capacity_end = that.capacity_end;
+        data_begin = that.data_begin;
+        data_end = that.data_end;
+        ++memory_version;
+        that.capacity_begin = that.capacity_end = that.data_begin = that.data_end = nullptr;
+    }
+    
+    void ensure_back_capacity(uint64_t capacity_required) {
+        uint64_t back_capacity = capacity_end - data_end;
+        
+        if ( back_capacity >= capacity_required ) return;
+        
+        uint64_t new_capacity = capacity();
+        
+        while (back_capacity < capacity_required) {
+            back_capacity += capacity();
+            new_capacity += capacity();
+        }
+        
+        T* new_capacity_begin = static_cast<T*>(operator new(sizeof(T) * new_capacity));
+        T* new_capacity_end = new_capacity_begin + new_capacity;
+        T* new_data_begin = new_capacity_begin + (data_begin - capacity_begin);
+        T* new_data_end = new_data_begin;
+
+        while (data_begin != data_end) {
+            new (new_data_end) T{std::move(*data_begin)};
+            data_begin -> ~T();
+            ++data_begin;
+            ++new_data_end;
+        }
+        
+        operator delete(capacity_begin);
+        
+        capacity_begin = new_capacity_begin;
+        capacity_end = new_capacity_end;
+        data_begin = new_data_begin;
+        data_end = new_data_end;
+        ++memory_version;
+    }
+    
+    void ensure_front_capacity(uint64_t capacity_required) {
+        uint64_t front_capacity = data_begin - capacity_begin;
+        
+        if (front_capacity >= capacity_required) return;
+        
+        uint64_t new_capacity = capacity();
+        
+        while (front_capacity < capacity_required) {
+            front_capacity += capacity();
+            new_capacity += capacity();
+        }
+        
+        T* new_capacity_begin = static_cast<T*>(operator new (sizeof(T) * new_capacity));
+        T* new_capacity_end = new_capacity_begin + new_capacity;
+        T* new_data_begin = new_capacity_end - (capacity_end - data_end) - length();
+        T* new_data_end = new_data_begin;
+        
+        while (data_begin != data_end) {
+            new (new_data_end) T{std::move(*data_begin)};
+            data_begin -> ~T();
+            ++data_begin;
+            ++new_data_end;
+        }
+        
+        operator delete(capacity_begin);
+        
+        capacity_begin = new_capacity_begin;
+        capacity_end = new_capacity_end;
+        data_begin = new_data_begin;
+        data_end = new_data_end;
+        ++memory_version;
+    }
+    
+    template <typename IT>
+    void construct_from_iterator(IT b, IT e, std::random_access_iterator_tag) {
+        uint64_t capacity = static_cast<uint64_t>(e - b);
+        if (capacity < MINIMUMCAPACITY) capacity = MINIMUMCAPACITY;
+        capacity_begin = data_begin = data_end = static_cast<T*>(operator new (sizeof(T) * capacity));
+        capacity_end = capacity_begin + capacity;
+        while (b != e) {
+            new (data_end) T(*b);
+            ++b;
+            ++data_end;
+        }
+        position_version = memory_version = 0;
+    }
+    
+    template <typename IT>
+    void construct_from_iterator(IT b, IT e, std::forward_iterator_tag) {
+        uint64_t capacity = MINIMUMCAPACITY;
+        capacity_begin = data_begin = data_end = static_cast<T*>(operator new (sizeof(T) * capacity));
+        capacity_end = capacity_begin + capacity;
+        while (b != e) {
+            push_back(*b);
+            ++b;
+        }
+        position_version = memory_version = 0;
+    }
+};
+
 } //namespace epl
 
-#endif
+#endif /* _Vector_h */
