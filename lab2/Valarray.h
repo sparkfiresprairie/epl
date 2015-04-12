@@ -1,16 +1,3 @@
-// Valarray.h
-
-/* Put your solution in this file, we expect to be able to use
- * your epl::valarray class by simply saying #include "Valarray.h"
- *
- * We will #include "Vector.h" to get the epl::vector<T> class
- * before we #include "Valarray.h". You are encouraged to test
- * and develop your class using std::vector<T> as the base class
- * for your epl::valarray<T>
- * you are required to submit your project with epl::vector<T>
- * as the base class for your epl::valarray<T>
- */
-
 #ifndef _Valarray_h
 #define _Valarray_h
 #include "Vector.h"
@@ -18,23 +5,15 @@
 //using std::vector; // during development and testing
 using epl::vector; // after submission
 
-/******************************************/
 // If operand is a proxy, we should use its value instead of its reference.
-/******************************************/
 template <typename T> struct to_ref { using type = T; };
 
 template <typename T> struct to_ref<vector<T>> { using type = const vector<T>&; };  // Here const is important!!!
 
 template <typename T> using Ref = typename to_ref<T>::type;   // type alias
-/******************************************/
 
-
-/******************************************/
 // Choose appropriate return type
-/******************************************/
-template <typename T>
-struct rank;
-
+template <typename T> struct rank { static constexpr int value = 0; };
 template <> struct rank<int> { static constexpr int value = 1; };
 template <> struct rank<float> { static constexpr int value = 2; };
 template <> struct rank<double> { static constexpr int value = 3; };
@@ -68,78 +47,79 @@ struct choose_type {
     
     using type = typename ctype<my_complex, my_type>::type;
 };
-/******************************************/
 
+template <typename T1, typename T2>
+using get_type = typename choose_type<typename T1::value_type, typename T2::value_type>::type;
 
-/******************************************/
+template <bool p, typename T>
+using EnableIf = typename std::enable_if<p, T>::type;
+
+template <typename V> struct vec_wrap;
+
+template <typename T>
+using valarray = vec_wrap<vector<T>>;
+
+// vector concepts'(proxy, scalar, etc) const_iterator
+template <typename V>
+class const_iterator {
+private:
+    const V parent;
+    uint64_t index;
+public:
+    const_iterator(const V p, const uint64_t& i) : parent(p), index(i) {}
+    typename V::value_type operator*() const { return parent[index]; }
+    const_iterator& operator++() {
+        index++;
+        return *this;
+    }
+    const_iterator operator++(int) {
+        const_iterator t{*this};
+        this->operator++();
+        return t;
+    }
+    const_iterator& operator--() {
+        index--;
+        return *this;
+    }
+    const_iterator operator--(int) {
+        const_iterator t{*this};
+        this->operator--();
+        return t;
+    }
+    bool operator==(const const_iterator& that) const {
+        return this->index == that.index;
+    }
+    bool operator!=(const const_iterator& that) const {
+        return !(*this == that);
+    }
+};
+
+// user-defined function object
+template <typename T>
+struct root {
+    using result_type = typename ctype<is_complex<T>::value, double>::type;
+    result_type operator() (T x) const { return sqrt(x); }
+};
+
 // vector, BinaryProxy, UnaryProxy, Scalar are all VECTOR CONCEPT.
-/******************************************/
-template <typename Left, typename Right>
+template <typename Left, typename Right, typename FUN>
 class BinaryProxy {
 public:
     Ref<Left> _l;
     Ref<Right> _r;
-    char _op;
+    FUN _op;
 public:
-    using value_type = typename choose_type<typename Left::value_type, typename Right::value_type>::type;
-    
+    using value_type = get_type<Left, Right>;
     BinaryProxy() = default;
-    BinaryProxy(Ref<Left> l, Ref<Right> r, char op): _l{l}, _r{r}, _op{op} {}
-    BinaryProxy(const BinaryProxy& that) : _l{that._l}, _r{that._r}, _op{that._op} {}
-    ~BinaryProxy() {}
-    
+    BinaryProxy(Ref<Left> l, Ref<Right> r, FUN op): _l(l), _r(r), _op(op) {}
+    BinaryProxy(const BinaryProxy& that) : _l(that._l), _r(that._r), _op(that._op) {}
+    ~BinaryProxy() = default;
     uint64_t size() const { return _l.size() < _r.size() ? _l.size() : _r.size(); }
-    
-    value_type operator[](uint64_t idx) const {
-        switch (_op) {
-            case '+': return (value_type)(_l[idx]) + (value_type)(_r[idx]);
-            case '-': return (value_type)(_l[idx]) - (value_type)(_r[idx]);
-            case '*': return (value_type)(_l[idx]) * (value_type)(_r[idx]);
-            case '/': return (value_type)(_l[idx]) / (value_type)(_r[idx]);
-            default: return 0;
-        }
-    };
-    
-    // const_iterator: we can't change the value it points to
-    // const iterator: it can't change(such as ++, --)
-    class const_iterator {
-    private:
-        const BinaryProxy<Left, Right> parent;
-        uint64_t index;
-    public:
-        const_iterator() : parent{nullptr}, index{0} {}
-        const_iterator(const BinaryProxy<Left, Right> p, const uint64_t& i) : parent{p}, index{i} {}
-        value_type operator*() const { return parent[index]; }
-        const_iterator& operator++() {
-            index++;
-            return *this;
-        }
-        const_iterator operator++(int) {
-            const_iterator t{*this};
-            this->operator++();
-            return t;
-        }
-        const_iterator& operator--() {
-            index--;
-            return *this;
-        }
-        const_iterator operator--(int) {
-            const_iterator t{*this};
-            this->operator--();
-            return t;
-        }
-        bool operator==(const const_iterator& that) const {
-            return this->index == that.index;
-        }
-        bool operator!=(const const_iterator& that) const {
-            return !(*this == that);
-        }
-    };
-    // we have to pass value instead of by pointer, because proxy is a temp!!!
-    // Besides since it is a proxy, copy is trivial.
-    const_iterator begin() const { return const_iterator{*this, 0}; };
-    const_iterator end() const { return const_iterator{*this, size()}; };
+    typename FUN::result_type operator[](uint64_t idx) const { return _op(_l[idx], _r[idx]); };
+    const_iterator<BinaryProxy> begin() const { return const_iterator<BinaryProxy>(*this, 0); };
+    const_iterator<BinaryProxy> end() const { return const_iterator<BinaryProxy>(*this, size()); };
 };
+
 
 template <typename T, typename FUN>
 class UnaryProxy {
@@ -148,55 +128,14 @@ public:
     FUN _op;
 public:
     using value_type = typename T::value_type;
-    
     UnaryProxy() = default;
-    // excess elements in struct initializer
-    // http://stackoverflow.com/a/14990955
     UnaryProxy(Ref<T> val, FUN op): _val(val), _op(op) {}
     UnaryProxy(const UnaryProxy& that): _val(that._val), _op(that._op) {}
-    ~UnaryProxy() {}
-    
+    ~UnaryProxy() =default;
     uint64_t size() const { return _val.size(); }
-    
-    typename FUN::result_type operator[](uint64_t idx) const {
-        return _op(_val[idx]);
-    };
-    
-    class const_iterator {
-    private:
-        const UnaryProxy<T, FUN> parent;
-        uint64_t index;
-    public:
-        const_iterator() : parent{nullptr}, index{0} {}
-        const_iterator(const UnaryProxy<T, FUN> p, const uint64_t& i) : parent{p}, index{i} {}
-        value_type operator*() const { return parent[index]; }
-        const_iterator& operator++() {
-            index++;
-            return *this;
-        }
-        const_iterator operator++(int) {
-            const_iterator t{*this};
-            this->operator++();
-            return t;
-        }
-        const_iterator& operator--() {
-            index--;
-            return *this;
-        }
-        const_iterator operator--(int) {
-            const_iterator t{*this};
-            this->operator--();
-            return t;
-        }
-        bool operator==(const const_iterator& that) const {
-            return this->index == that.index;
-        }
-        bool operator!=(const const_iterator& that) const {
-            return !(*this == that);
-        }
-    };
-    const_iterator begin() const { return const_iterator{*this, 0}; }
-    const_iterator end() const { return const_iterator{*this, size()}; }
+    typename FUN::result_type operator[](uint64_t idx) const { return _op(_val[idx]); };
+    const_iterator<UnaryProxy> begin() const { return const_iterator<UnaryProxy>(*this, 0); };
+    const_iterator<UnaryProxy> end() const { return const_iterator<UnaryProxy>(*this, size()); };
 };
 
 template <typename T>
@@ -205,61 +144,61 @@ private:
     T _val;
 public:
     using value_type = T;
-    
     Scalar() : _val{0} {}
-    Scalar(const T& val): _val{val} {}
-    Scalar(const Scalar& that): _val{that[0]} {}
-    ~Scalar() {}
-    
+    Scalar(const T& val): _val(val) {}
+    Scalar(const Scalar& that): _val(that[0]) {}
+    ~Scalar() = default;
     uint64_t size() const { return std::numeric_limits<uint64_t>::max(); }
-    
     T operator[] (uint64_t idx) const { return _val; }  // rvalue
-    
-    class const_iterator {
-    private:
-        const Scalar<T> parent;
-        uint64_t index;
-    public:
-        const_iterator() : parent{nullptr}, index{0} {}
-        const_iterator(const Scalar<T> p, const uint64_t& i) : parent{p}, index{i} {}
-        uint64_t operator*() { return parent[0]; }
-        const_iterator& operator++() { return *this; }
-        const_iterator operator++(int) { return *this; }
-        const_iterator& operator--() { return *this; }
-        const_iterator operator--(int) { return *this; }
-        bool operator==(const const_iterator& that) const { return true; }
-        bool operator!=(const const_iterator& that) const { return false; }
-    };
-    const_iterator begin() const { return const_iterator{*this, 0}; };
-    const_iterator end() const { return const_iterator{*this, 0}; };
-};
-/******************************************/
-
-
-/******************************************/
-// function object
-/******************************************/
-template <typename T>
-struct root {
-    using result_type = typename ctype<is_complex<T>::value, double>::type;
-    result_type operator() (T x) const { return sqrt(x); }
+    const_iterator<Scalar> begin() const { return const_iterator<Scalar>(*this, 0); };
+    const_iterator<Scalar> end() const { return const_iterator<Scalar>(*this, size()); };
 };
 
-/******************************************/
-
-
-/******************************************/
 // vector (concept) wrapper
-/******************************************/
 template <typename V>
 struct vec_wrap : public V {
     vec_wrap() : V() {}
+
     vec_wrap(const V& that) : V(that) {}
-    ~vec_wrap() {}
+    
+    explicit vec_wrap(uint64_t sz) : V(sz) {}
+    
+    template <typename T>
+    vec_wrap(std::initializer_list<T> list) : V(list) {}
+    
+    template <typename RHS>
+    vec_wrap(const vec_wrap<RHS>& that ) {
+        for (auto val : that) {
+            this->push_back( static_cast<typename V::value_type>(val) );
+        }
+    }
+
+    ~vec_wrap() = default;
+    
+    vec_wrap& operator=(const vec_wrap<V>& that) {
+        if ((void*)this != (void*)&that) {
+            uint64_t min_size = this->size() < that.size() ? this->size() : that.size();
+            for (uint64_t i = 0; i < min_size; ++i) {
+                (*this)[i] = static_cast<typename V::value_type>(that[i]);
+            }
+        }
+        return *this;
+    }
+    
+    template <typename RHS>
+    vec_wrap& operator=(const vec_wrap<RHS>& that) {
+        if ((void*)this != (void*)&that) {
+            uint64_t min_size = this->size() < that.size() ? this->size() : that.size();
+            for (uint64_t i = 0; i < min_size; ++i) {
+                (*this)[i] = static_cast<typename V::value_type>(that[i]);
+            }
+        }
+        return *this;
+    }
     
     template <typename FUN>
     typename FUN::result_type accumulate(FUN f) {
-        typename FUN::result_type sum{(*this)[0]};
+        typename FUN::result_type sum((*this)[0]);
         for (auto it = (++this->begin()); it != this->end(); ++it)
             sum = f(sum, *it);
         return sum;
@@ -269,9 +208,14 @@ struct vec_wrap : public V {
         return accumulate(std::plus<typename V::value_type>{});
     }
     
+    template <typename T>
+    EnableIf<rank<T>::value, void> operator=(const T& that) {
+        this->operator=(vec_wrap<Scalar<T>>(that));
+    }
+    
     template <typename FUN>
     vec_wrap<UnaryProxy<V, FUN>> apply(FUN f) {
-        return vec_wrap<UnaryProxy<V, FUN>>{ UnaryProxy<V, FUN>{*this, f} };
+        return vec_wrap<UnaryProxy<V, FUN>>( UnaryProxy<V, FUN>(*this, f) );
     }
     
     vec_wrap<UnaryProxy<V, std::negate<typename V::value_type>>> operator-(void) {
@@ -281,141 +225,73 @@ struct vec_wrap : public V {
     vec_wrap<UnaryProxy<V, root<typename V::value_type>>> sqrt(void) {
         return apply(root<typename V::value_type>{});
     }
-    
 };
-
-template <typename T>
-struct vec_wrap<vector<T>> : public vector<T> {
-    vec_wrap<vector<T>>() : vector<T>() {}
-    explicit vec_wrap<vector<T>>(uint64_t sz) : vector<T>(sz) {}
-    vec_wrap<vector<T>>(std::initializer_list<T> list) : vector<T>(list) {}
-    vec_wrap<vector<T>>(const vec_wrap<vector<T>>& that) : vector<T>(that) {}
-    template <typename V>
-    vec_wrap<vector<T>>(const vec_wrap<V>& that ) {
-        for (auto val : that) {
-            this->push_back((T)val);
-        }
-    }
-    ~vec_wrap<vector<T>>() {}
-    
-    vec_wrap<vector<T>>& operator=(const vec_wrap<vector<T>>& that) {
-        if ((void*)this != (void*)&that) {
-            uint64_t min_size = this->size() < that.size() ? this->size() : that.size();
-            for (uint64_t i = 0; i < min_size; ++i) {
-                (*this)[i] = (T)(that[i]);
-            }
-        }
-        return *this;
-    }
-    
-    template <typename V>
-    vec_wrap<vector<T>>& operator=(const vec_wrap<V>& that) {
-        if ((void*)this != (void*)&that) {
-            uint64_t min_size = this->size() < that.size() ? this->size() : that.size();
-            for (uint64_t i = 0; i < min_size; ++i) {
-                (*this)[i] = (T)(that[i]);
-            }
-        }
-        return *this;
-    }
-    
-    void operator=(const T& that) {
-        this->operator=( vec_wrap<Scalar<T>>{that} );
-    }
-    
-    template <typename FUN>
-    typename FUN::result_type accumulate(FUN f) {
-        typename FUN::result_type sum{(*this)[0]};
-        for (auto it = (++this->begin()); it != this->end(); ++it)
-            sum = f(sum, *it);
-        return sum;
-    }
-    
-    typename std::plus<T>::result_type sum() {
-        return accumulate(std::plus<T>{});
-    }
-    
-    template <typename FUN>
-    vec_wrap<UnaryProxy<vector<T>, FUN>> apply(FUN f) {
-        return vec_wrap<UnaryProxy<vector<T>, FUN>>{ UnaryProxy<vector<T>, FUN>{*this, f} };
-    }
-    
-    vec_wrap<UnaryProxy<vector<T>, std::negate<typename vector<T>::value_type>>> operator-(void) {
-        return apply(std::negate<typename vector<T>::value_type>{});
-    }
-    
-    vec_wrap<UnaryProxy<vector<T>, root<typename vector<T>::value_type>>> sqrt(void) {
-        return apply(root<typename vector<T>::value_type>{});
-    }
-
-};
-/******************************************/
-
-
-/******************************************/
-// type alias
-/******************************************/
-template <typename T>
-using valarray = vec_wrap<vector<T>>;
-/******************************************/
 
 /******************************************/
 // binary operations
 /******************************************/
 // Add
-template <typename V1, typename V2>
-vec_wrap<BinaryProxy<V1, V2>> operator+(const vec_wrap<V1>& lhs, const vec_wrap<V2>& rhs) {
-    return vec_wrap<BinaryProxy<V1,V2>>{ BinaryProxy<V1, V2>{lhs, rhs, '+'} };
+template <typename V1, typename V2, typename FUN = std::plus<get_type<V1, V2>>>
+vec_wrap<BinaryProxy<V1, V2, FUN>> operator+(const vec_wrap<V1>& lhs, const vec_wrap<V2>& rhs) {
+    return vec_wrap<BinaryProxy<V1, V2, FUN>>(BinaryProxy<V1, V2, FUN>(lhs, rhs, FUN{}));
 }
-template <typename T, typename V>
-vec_wrap<BinaryProxy<Scalar<T>, V>> operator+(const T& lhs, const vec_wrap<V>& rhs) {
-    return vec_wrap<BinaryProxy<Scalar<T>, V>>{ BinaryProxy<Scalar<T>, V>{vec_wrap<Scalar<T>>{lhs}, rhs, '+'} };
+template <typename T, typename V, typename FUN = std::plus<get_type<Scalar<T>, V>>>
+EnableIf<rank<T>::value, vec_wrap<BinaryProxy<Scalar<T>, V, FUN>>>
+operator+(const T& lhs, const vec_wrap<V>& rhs) {
+    return vec_wrap<BinaryProxy<Scalar<T>, V, FUN>>(BinaryProxy<Scalar<T>, V, FUN>(vec_wrap<Scalar<T>>(lhs), rhs, FUN{}));
 }
-template <typename V, typename T>
-vec_wrap<BinaryProxy<V, Scalar<T>>> operator+(const vec_wrap<V>& lhs, const T& rhs) {
-    return vec_wrap<BinaryProxy<V, Scalar<T>>>{ BinaryProxy<V, Scalar<T>>{lhs, vec_wrap<Scalar<T>>{rhs}, '+'} };
+template <typename V, typename T, typename FUN = std::plus<get_type<V, Scalar<T>>>>
+EnableIf<rank<T>::value, vec_wrap<BinaryProxy<V, Scalar<T>, FUN>>>
+operator+(const vec_wrap<V>& lhs, const T& rhs) {
+    return vec_wrap<BinaryProxy<V, Scalar<T>, FUN>>(BinaryProxy<V, Scalar<T>, FUN>(lhs, vec_wrap<Scalar<T>>(rhs), FUN{}));
 }
 
 // Sub
-template <typename V1, typename V2>
-vec_wrap<BinaryProxy<V1, V2>> operator-(const vec_wrap<V1>& lhs, const vec_wrap<V2>& rhs) {
-    return vec_wrap<BinaryProxy<V1,V2>>{ BinaryProxy<V1, V2>{lhs, rhs, '-'} };
+template <typename V1, typename V2, typename FUN = std::minus<get_type<V1, V2>>>
+vec_wrap<BinaryProxy<V1, V2, FUN>> operator-(const vec_wrap<V1>& lhs, const vec_wrap<V2>& rhs) {
+    return vec_wrap<BinaryProxy<V1, V2, FUN>>(BinaryProxy<V1, V2, FUN>(lhs, rhs, FUN{}));
 }
-template <typename T, typename V>
-vec_wrap<BinaryProxy<Scalar<T>, V>> operator-(const T& lhs, const vec_wrap<V>& rhs) {
-    return vec_wrap<BinaryProxy<Scalar<T>, V>>{ BinaryProxy<Scalar<T>, V>{vec_wrap<Scalar<T>>{lhs}, rhs, '-'} };
+template <typename T, typename V, typename FUN = std::minus<get_type<Scalar<T>, V>>>
+EnableIf<rank<T>::value, vec_wrap<BinaryProxy<Scalar<T>, V, FUN>>>
+operator-(const T& lhs, const vec_wrap<V>& rhs) {
+    return vec_wrap<BinaryProxy<Scalar<T>, V, FUN>>(BinaryProxy<Scalar<T>, V, FUN>(vec_wrap<Scalar<T>>(lhs), rhs, FUN{}));
 }
-template <typename V, typename T>
-vec_wrap<BinaryProxy<V, Scalar<T>>> operator-(const vec_wrap<V>& lhs, const T& rhs) {
-    return vec_wrap<BinaryProxy<V, Scalar<T>>>{ BinaryProxy<V, Scalar<T>>{lhs, vec_wrap<Scalar<T>>{rhs}, '-'} };
+template <typename V, typename T, typename FUN = std::minus<get_type<V, Scalar<T>>>>
+EnableIf<rank<T>::value, vec_wrap<BinaryProxy<V, Scalar<T>, FUN>>>
+operator-(const vec_wrap<V>& lhs, const T& rhs) {
+    return vec_wrap<BinaryProxy<V, Scalar<T>, FUN>>(BinaryProxy<V, Scalar<T>, FUN>(lhs, vec_wrap<Scalar<T>>(rhs), FUN{}));
 }
 
 // Mul
-template <typename V1, typename V2>
-vec_wrap<BinaryProxy<V1, V2>> operator*(const vec_wrap<V1>& lhs, const vec_wrap<V2>& rhs) {
-    return vec_wrap<BinaryProxy<V1,V2>>{ BinaryProxy<V1, V2>{lhs, rhs, '*'} };
+template <typename V1, typename V2, typename FUN = std::multiplies<get_type<V1, V2>>>
+vec_wrap<BinaryProxy<V1, V2, FUN>> operator*(const vec_wrap<V1>& lhs, const vec_wrap<V2>& rhs) {
+    return vec_wrap<BinaryProxy<V1, V2, FUN>>(BinaryProxy<V1, V2, FUN>(lhs, rhs, FUN{}));
 }
-template <typename T, typename V>
-vec_wrap<BinaryProxy<Scalar<T>, V>> operator*(const T& lhs, const vec_wrap<V>& rhs) {
-    return vec_wrap<BinaryProxy<Scalar<T>, V>>{ BinaryProxy<Scalar<T>, V>{vec_wrap<Scalar<T>>{lhs}, rhs, '*'} };
+template <typename T, typename V, typename FUN = std::multiplies<get_type<Scalar<T>, V>>>
+EnableIf<rank<T>::value, vec_wrap<BinaryProxy<Scalar<T>, V, FUN>>>
+operator*(const T& lhs, const vec_wrap<V>& rhs) {
+    return vec_wrap<BinaryProxy<Scalar<T>, V, FUN>>(BinaryProxy<Scalar<T>, V, FUN>(vec_wrap<Scalar<T>>(lhs), rhs, FUN{}));
 }
-template <typename V, typename T>
-vec_wrap<BinaryProxy<V, Scalar<T>>> operator*(const vec_wrap<V>& lhs, const T& rhs) {
-    return vec_wrap<BinaryProxy<V, Scalar<T>>>{ BinaryProxy<V, Scalar<T>>{lhs, vec_wrap<Scalar<T>>{rhs}, '*'} };
+template <typename V, typename T, typename FUN = std::multiplies<get_type<V, Scalar<T>>>>
+EnableIf<rank<T>::value, vec_wrap<BinaryProxy<V, Scalar<T>, FUN>>>
+operator*(const vec_wrap<V>& lhs, const T& rhs) {
+    return vec_wrap<BinaryProxy<V, Scalar<T>, FUN>>(BinaryProxy<V, Scalar<T>, FUN>(lhs, vec_wrap<Scalar<T>>(rhs), FUN{}));
 }
 
 // Div
-template <typename V1, typename V2>
-vec_wrap<BinaryProxy<V1, V2>> operator/(const vec_wrap<V1>& lhs, const vec_wrap<V2>& rhs) {
-    return vec_wrap<BinaryProxy<V1,V2>>{ BinaryProxy<V1, V2>{lhs, rhs, '/'} };
+template <typename V1, typename V2, typename FUN = std::divides<get_type<V1, V2>>>
+vec_wrap<BinaryProxy<V1, V2, FUN>> operator/(const vec_wrap<V1>& lhs, const vec_wrap<V2>& rhs) {
+    return vec_wrap<BinaryProxy<V1, V2, FUN>>(BinaryProxy<V1, V2, FUN>(lhs, rhs, FUN{}));
 }
-template <typename T, typename V>
-vec_wrap<BinaryProxy<Scalar<T>, V>> operator/(const T& lhs, const vec_wrap<V>& rhs) {
-    return vec_wrap<BinaryProxy<Scalar<T>, V>>{ BinaryProxy<Scalar<T>, V>{vec_wrap<Scalar<T>>{lhs}, rhs, '/'} };
+template <typename T, typename V, typename FUN = std::divides<get_type<Scalar<T>, V>>>
+EnableIf<rank<T>::value, vec_wrap<BinaryProxy<Scalar<T>, V, FUN>>>
+operator/(const T& lhs, const vec_wrap<V>& rhs) {
+    return vec_wrap<BinaryProxy<Scalar<T>, V, FUN>>(BinaryProxy<Scalar<T>, V, FUN>(vec_wrap<Scalar<T>>(lhs), rhs, FUN{}));
 }
-template <typename V, typename T>
-vec_wrap<BinaryProxy<V, Scalar<T>>> operator/(const vec_wrap<V>& lhs, const T& rhs) {
-    return vec_wrap<BinaryProxy<V, Scalar<T>>>{ BinaryProxy<V, Scalar<T>>{lhs, vec_wrap<Scalar<T>>{rhs}, '/'} };
+template <typename V, typename T, typename FUN = std::divides<get_type<V, Scalar<T>>>>
+EnableIf<rank<T>::value, vec_wrap<BinaryProxy<V, Scalar<T>, FUN>>>
+operator/(const vec_wrap<V>& lhs, const T& rhs) {
+    return vec_wrap<BinaryProxy<V, Scalar<T>, FUN>>(BinaryProxy<V, Scalar<T>, FUN>(lhs, vec_wrap<Scalar<T>>(rhs), FUN{}));
 }
 
 // Output
