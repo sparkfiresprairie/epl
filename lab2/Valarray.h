@@ -120,7 +120,6 @@ public:
     const_iterator<BinaryProxy> end() const { return const_iterator<BinaryProxy>(*this, size()); };
 };
 
-
 template <typename T, typename FUN>
 class UnaryProxy {
 public:
@@ -131,7 +130,7 @@ public:
     UnaryProxy() = default;
     UnaryProxy(Ref<T> val, FUN op): _val(val), _op(op) {}
     UnaryProxy(const UnaryProxy& that): _val(that._val), _op(that._op) {}
-    ~UnaryProxy() =default;
+    ~UnaryProxy() = default;
     uint64_t size() const { return _val.size(); }
     typename FUN::result_type operator[](uint64_t idx) const { return _op(_val[idx]); };
     const_iterator<UnaryProxy> begin() const { return const_iterator<UnaryProxy>(*this, 0); };
