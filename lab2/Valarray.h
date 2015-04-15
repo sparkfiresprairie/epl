@@ -206,7 +206,7 @@ struct vec_wrap : public V {
     template <typename FUN>
     typename FUN::result_type accumulate(FUN f) {
         typename FUN::result_type sum((*this)[0]);
-        for (auto it = (++this->begin()); it != this->end(); ++it)
+        for (auto it = ++(this->begin()); it != this->end(); ++it)
             sum = f(sum, *it);
         return sum;
     }
