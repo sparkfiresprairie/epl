@@ -1,4 +1,4 @@
-Engineering Programming Language Project Description
+Advanced C++ Programming Project
 ====================================================
 Instructor: Prof. Craig Chase
 
