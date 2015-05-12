@@ -1,0 +1,66 @@
+<html>
+<head><title>Lifeform Simulation FAQ - EPL Fall'2001</title></head>
+<body>
+
+<p> Lifeform: Frequently Asked Questions> <br>
+
+<ul>
+<li> Could you tell me what the function "compute_next_move" is supposed 
+to do ? I didn't have to use it in my implementation of any of the other
+functions and it is private function. Is it ok for me to just make it an
+empty function ? <br>
+<em>Just make it an empty function.
+In my solution it is 3-lines long.  Most other programmers simply embed
+these same 3 lines in the other functions (e.g., set_course, set_speed).
+<br></em><br>
+
+<li> In resolve_encounter, do we call the encounter functions before or
+after applying the encounter penalty. In case it is after, what do we do
+if one of the lifeforms dies on applying penalty - do nothing or go ahead
+and call the encounter functions but do no eating. The encounter function
+could possibly change the behaviour of the alive object. <br>
+
+<em>I would suggest, that
+you apply the encounter penalty first, then let the objects run
+their encounter method (only if the object is still alive, of course).
+<br></em><br>
+
+<li> eat_cost_function(double, double) does not use its argument and its
+not documented what they are supposed to be. Is it OK to pass them
+constants ? <br>
+&nbsp;<br>
+<em>The two parameters are the energy of the life form performing the eating
+(1st param) and the energy of the life form that is being 
+eaten (2nd param). </em> <br>
+<em>The params to eat_cost_function match the params to eat_success_chance. </em>
+<br><br>
+
+<li> When a lifeform reproduces a child, I will try to find a place 
+for the child that is at least encounter_distance far away from all 
+other lifeforms (including its parent).  But what if I cannot find 
+such a place? Should I call resolve_encounter immediately or should 
+I schedule an check encounter event in time 0? Or should I just 
+prevent parent from reproducing by child->die() (not charge 
+reproduce_penalty)? <br>
+<em>You may do whatever you like. <br>
+The solution attempts to find a "safe" position about 5 times.  
+After that, whatever random position was last chosen is used.  
+If that position is unsafe, the solution immediately resolves 
+the encounter with the closest object (assuming that more than 
+one object is within encounter_distance of the child).  Under 
+no circumstances should the child encounter the parent. <br>
+*when* to resolve the encounter is part of the design work that you 
+should do.  both solutions (resolving the encounter immediately ---  
+invoked as a subroutine of the reproduce function, and resolving 
+the encounter as a future event (not too far in the future, of course)), 
+can be made to work.
+
+</em>
+
+</ul>
+
+Contact TAs during office hours for any other query as sometimes its 
+a difficult propostion to explain the situation in emails, though 
+emails are still welcome.
+</body>
+</html>
