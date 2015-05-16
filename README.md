@@ -85,3 +85,10 @@ This project is to implement the container epl::valarray. A valarray is essentia
   5. Type promotion should be to the strictest type acceptable for the operation to occur – e.g., if a valarray\<int\> is added to a complex\<float\> the result should be a valarray\<complex\<float\>\>. If a valarray<double> is added to a complex\<float\> then the result should be a valarray\<complex\<double\>\>.
 
 Here is how I implemented [Valarray.h](./lab2/Valarray.h).
+
+Project3. LifeForm Simulation
+------------------------------------------------
+In this project, we are required to complete the simulation infrastructure that we get from professor. And we are required to invent at least one new LifeForm and simulate the LifeForm's existance (or evolution) of that LifeForm.
+
+Simulation Infrastructure
+Rules of the Game
