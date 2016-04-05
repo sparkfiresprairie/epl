@@ -6,12 +6,15 @@
 #include <utility>
 #include <iterator>
 
-//Utility gives std::rel_ops which will fill in relational
-//iterator operations so long as you provide the
-//operators discussed in class.  In any case, ensure that
-//all operations listed in this website are legal for your
-//iterators:
-//http://www.cplusplus.com/reference/iterator/RandomAccessIterator/
+/*
+ * Utility gives std::rel_ops which will fill in relational
+ * iterator operations so long as you provide the
+ * operators discussed in class.  In any case, ensure that
+ * all operations listed in this website are legal for your
+ * iterators:
+ * http://www.cplusplus.com/reference/iterator/RandomAccessIterator/
+ */
+
 using namespace std::rel_ops;
 
 namespace epl{
@@ -51,16 +54,15 @@ namespace epl{
         class iterator_base : public std::iterator<std::random_access_iterator_tag, T> {
         private:
             /* type alias */
-            using data_structure_pointer_type = typename std::conditional<is_const_iterator, vector<T> const*, vector<T>*>::type;
+            using data_structure_pointer_type = typename std::conditional<is_const_iterator, vector const*, vector*>::type;
             using value_reference_type = typename std::conditional<is_const_iterator, T const&, T&>::type;
             using value_pointer_type = typename std::conditional<is_const_iterator, T const*, T*>::type;
 
             /* data member */
             data_structure_pointer_type ds;
-            uint64_t offset;
+            int64_t offset;
             uint64_t modification_snapshot;
             uint64_t reallocation_snapshot;
-            bool inbound_snapshot;
         public:
             /* type alias */
             using typename std::iterator<std::random_access_iterator_tag, T>::iterator_category;
@@ -74,15 +76,15 @@ namespace epl{
                     : ds{ nullptr },
                       offset{ 0 },
                       modification_snapshot{ 0 },
-                      reallocation_snapshot{ 0 },
-                      inbound_snapshot{true} {}
+                      reallocation_snapshot{ 0 }
+                      {}
 
-            iterator_base(data_structure_pointer_type ds, uint64_t offset, uint64_t modification, uint64_t reallocation, bool inbound)
+            iterator_base(data_structure_pointer_type ds, int64_t offset, uint64_t modification, uint64_t reallocation)
                     : ds{ ds },
                       offset{ offset },
                       modification_snapshot{ modification },
-                      reallocation_snapshot{ reallocation },
-                      inbound_snapshot{ inbound } {}
+                      reallocation_snapshot{ reallocation }
+                      {}
 
             iterator_base(iterator_base const& that) { iterator_base::copy(that); }
 
@@ -100,7 +102,7 @@ namespace epl{
              * casts) to const_iterator
              */
             operator iterator_base<true>(void) {
-                return iterator_base<true>(ds, offset, modification_snapshot, reallocation_snapshot, inbound_snapshot);
+                return iterator_base<true>(ds, offset, modification_snapshot, reallocation_snapshot);
             }
 
             /* Can be incremented */
@@ -112,18 +114,15 @@ namespace epl{
 
             iterator_base operator++(int) {  // post-increment operator, e.g. it++
                 iterator_base t{ *this };
-                this->operator++();
+                operator++();
                 return t;
             }
 
             /* Supports equality/inequality comparisons */
             bool operator==(iterator_base const& that) const {
                 assert_valid();
+                that.assert_valid();
                 return ds == that.ds && offset == that.offset;
-            }
-
-            bool operator!=(iterator_base const& that) const {
-                return !(*this == that);
             }
 
             /* Can be dereferenced */
@@ -133,7 +132,7 @@ namespace epl{
             }
 
             value_pointer_type operator->(void) const {
-                return &(this->operator*());
+                return &(operator*());
             }
 
             /* Can be decremented */
@@ -145,7 +144,7 @@ namespace epl{
 
             iterator_base operator--(int) {	// post-decrement operator, e.g. it--;
                 iterator_base t{ *this };
-                this->operator--();
+                operator--();
                 return t;
             }
 
@@ -157,7 +156,7 @@ namespace epl{
             }
 
             iterator_base& operator-=(int64_t k) {
-                this->operator+=(-k);
+                operator+=(-k);
                 return *this;
             }
 
@@ -174,24 +173,13 @@ namespace epl{
 
             difference_type operator-(iterator_base const& that) const {
                 assert_valid();
+                that.assert_valid();
                 return offset - that.offset;
             }
 
             /* Supports inequality comparisons (<, >, <= and >=) between iterators */
             bool operator<(iterator_base const& that) const {
                 return *this - that < 0;
-            }
-
-            bool operator>(iterator_base const& that) const {
-                return that < *this;
-            }
-
-            bool operator<=(iterator_base const& that) const {
-                return !(*this > that);
-            }
-
-            bool operator>=(iterator_base const& that) const {
-                return !(*this < that);
             }
 
             /* Supports offset dereference operator ([]) */
@@ -204,7 +192,6 @@ namespace epl{
                 offset = that.offset;
                 modification_snapshot = that.modification_snapshot;
                 reallocation_snapshot = that.reallocation_snapshot;
-                inbound_snapshot = that.inbound_snapshot;
             }
 
             void assert_valid(void) const {
@@ -213,9 +200,9 @@ namespace epl{
                 bool is_inbound = (offset >= 0 && offset < ds->length);
 
                 if (is_modified || is_reallocated) {
-                    if (inbound_snapshot && !is_inbound)
+                    if (!is_inbound)
                         throw invalid_iterator(invalid_iterator::SEVERE);
-                    else if (is_inbound && is_reallocated)
+                    else if (is_reallocated)
                         throw invalid_iterator(invalid_iterator::MODERATE);
                     else
                         throw invalid_iterator(invalid_iterator::MILD);
@@ -243,11 +230,11 @@ namespace epl{
             }
         }
 
-        vector(vector<T> const& that) {
+        vector(vector const& that) {
             copy(that);
         }
 
-        vector(vector<T>&& that) {
+        vector(vector&& that) {
             move(std::move(that));
         }
 
@@ -275,7 +262,7 @@ namespace epl{
 
         vector(std::initializer_list<T> list): vector(list.begin(), list.end()) {}
 
-        vector<T>& operator=(vector<T> const& that) {
+        vector& operator=(vector const& that) {
             if (this != &that) {
                 destroy();
                 copy(that);
@@ -283,7 +270,7 @@ namespace epl{
             return *this;
         }
 
-        vector<T>& operator=(vector<T>&& that) {
+        vector& operator=(vector&& that) {
             if (this != &that) {
                 destroy();
                 move(std::move(that));
@@ -309,7 +296,7 @@ namespace epl{
         }
 
         T& operator[](uint64_t n) {
-            return const_cast<T&>(static_cast<vector<T> const&>(*this)[n]);
+            return const_cast<T&>(static_cast<vector const&>(*this)[n]);
         }
 
 
@@ -386,19 +373,19 @@ namespace epl{
 
         /* Member Function Group: Iterators */
         const_iterator begin(void) const {
-            return const_iterator(this, 0, modification, reallocation, true);
+            return const_iterator(this, 0, modification, reallocation);
         }
 
         const_iterator end(void) const {
-            return const_iterator(this, length, modification, reallocation, false);
+            return const_iterator(this, length, modification, reallocation);
         }
 
         iterator begin(void) {
-            return iterator(this, 0, modification, reallocation, true);
+            return iterator(this, 0, modification, reallocation);
         }
 
         iterator end(void) {
-            return iterator(this, length, modification, reallocation, false);
+            return iterator(this, length, modification, reallocation);
         }
     private:
         void init(uint64_t n) {
@@ -410,7 +397,7 @@ namespace epl{
             reallocation = 0;
         }
 
-        void copy(vector<T> const& that) {
+        void copy(vector const& that) {
             capacity = that.capacity;
             length = that.length;
             cap = static_cast<T*>(::operator new(capacity * sizeof(T)));
@@ -421,7 +408,7 @@ namespace epl{
             reallocation += 1;
         }
 
-        void move(vector<T>&& that) {
+        void move(vector&& that) {
             capacity = that.capacity;
             length = that.length;
             cap = that.cap;
@@ -500,7 +487,6 @@ namespace epl{
             reallocation += 1;
         }
     };
-
 } //namespace epl
 
 #endif
