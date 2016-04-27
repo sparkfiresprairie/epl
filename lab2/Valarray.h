@@ -7,8 +7,7 @@
 #include <cmath>
 #include <functional>
 
-//using std::vector; // during development and testing
-using epl::vector; // after submission
+using std::vector; 
 
 /* type promotion */
 template <typename T> struct to_rank;
