@@ -308,4 +308,5 @@ std::ostream& operator<<(std::ostream& out, wrap<V> const& that) {
 
 template <typename T>
 using valarray = wrap<vector<T>>;
+
 #endif /* _Valarray_h */
