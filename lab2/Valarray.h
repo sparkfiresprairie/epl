@@ -7,7 +7,7 @@
 #include <cmath>
 #include <functional>
 
-using std::vector; 
+using epl::vector; 
 
 /* type promotion */
 template <typename T> struct to_rank;
@@ -219,6 +219,7 @@ public:
 
 	template <typename FUN>
 	auto accumulate(FUN f) const {
+		if (!this->size()) return 0;
 		value_type result{ (*this)[0] };
 		for (auto i = 1; i < this->size(); i += 1) {
 			result = f(result, (*this)[i]);
