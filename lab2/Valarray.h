@@ -7,7 +7,7 @@
 #include <cmath>
 #include <functional>
 
-using epl::vector; 
+using epl::vector;
 
 /* type promotion */
 template <typename T> struct to_rank;
@@ -48,14 +48,13 @@ using choose_type = typename _choose_type<T1, T2>::type;
 template <typename V>
 class iterator_helper {
 private:
-	V const* ptr;
+	V obj;
 	uint64_t index;
 public:
-	iterator_helper(void) : ptr{ nullptr }, index{ 0 } {}
-	iterator_helper(V const* p, uint64_t k) : ptr{ p }, index{ k } {}
-	iterator_helper(iterator_helper const& that) : ptr{ that.ptr }, index{ that.index } {}
+	iterator_helper(V const& arg, uint64_t k) : obj{ arg }, index{ k } {}
+	iterator_helper(iterator_helper const& that) : obj{ that.obj }, index{ that.index } {}
 	auto operator*(void) {
-		return (*ptr)[index];
+		return obj[index];
 	}
 	iterator_helper& operator++(void) {
 		index += 1;
@@ -67,7 +66,7 @@ public:
 		return t;
 	}
 	bool operator==(iterator_helper const& that) const {
-		return ptr == that.ptr && index == that.index;
+		return obj == that.obj && index == that.index;
 	}
 	bool operator!=(iterator_helper const& that) const {
 		return !(*this == that);
@@ -104,10 +103,10 @@ public:
 		return f(static_cast<value_type>(lhs[k]), static_cast<value_type>(rhs[k]));
 	}
 	const_iterator begin(void) const {
-		return const_iterator(this, 0);
+		return const_iterator(*this, 0);
 	}
 	const_iterator end(void) const {
-		return const_iterator(this, size());
+		return const_iterator(*this, size());
 	}
 };
 
@@ -118,7 +117,7 @@ private:
 	ref<V> val;
 	FUN f;
 public:
-	unary_proxy(ref<V> x, FUN op) : val{ x }, f{op} {}
+	unary_proxy(ref<V> x, FUN op) : val{ x }, f{ op } {}
 	unary_proxy(unary_proxy const& that) : val{ that.val }, f{ that.f } {}
 	/* vector concept interface */
 	using const_iterator = iterator_helper<unary_proxy>;
@@ -130,10 +129,10 @@ public:
 		return f(val[k]);
 	}
 	const_iterator begin(void) const {
-		return const_iterator(this, 0);
+		return const_iterator(*this, 0);
 	}
 	const_iterator end(void) const {
-		return const_iterator(this, size());
+		return const_iterator(*this, size());
 	}
 };
 
@@ -155,10 +154,10 @@ public:
 		return val;
 	}
 	const_iterator begin(void) const {
-		return const_iterator(this, 0);
+		return const_iterator(*this, 0);
 	}
 	const_iterator end(void) const {
-		return const_iterator(this, size());
+		return const_iterator(*this, size());
 	}
 };
 
