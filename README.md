@@ -86,7 +86,7 @@ This project is to implement the container epl::valarray. A valarray is essentia
 
 Here is how I implemented [Valarray.h](./lab2/Valarray.h).
 
-Project3. LifeForm Simulation
+Project3. LifeForm Simulation (OOP)
 ------------------------------------------------
 This project is to complete the simulation infrastructure that we get from the instructor and also to invent at least one new LifeForm and simulate the LifeForm's existance (or evolution) of that LifeForm.
 
