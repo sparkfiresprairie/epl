@@ -91,9 +91,13 @@ Project3. LifeForm Simulation
 This project is to complete the simulation infrastructure that we get from the instructor and also to invent at least one new LifeForm and simulate the LifeForm's existance (or evolution) of that LifeForm.
 
 ###Overview:
-  1. Events:
-  2. Region of space(quadtree):
+  1. Events: We use the make_procedure function to create function objects as described in class. Events can then be dynamically allocated. The Event constructor takes a time and a procedure. The procedure will be called that many time units into the future (the time is relative, not absolute). Creating an event automatically puts the event in the central event queue. Events automatically delete themselves when they occur. If we delete an event before it occurs it automatically removes itself from the event queue.
+  2. Region of space(quadtree): We use the QuadTree\<LifeForm*\> data structure to represent space. 
   3. How to move around:
+- LifeForm::update_position(void) - computes the new position, charge for energy consumed.
+- LifeForm::border_cross(void) - movement event handler function. It calls update_position and then schedules the next movement event.
+- LifeForm::region_resize(void) - this function will be a callback from the QuadTree. When another object is created nearby, the object needs to determine the next possible time that they could collide. The QuadTree knows when objects are inserted inside it, so it can invoke this callback function on your objects. We have to have region_resize cancel any pending border crossing events, update the position, and schedule the next movement event (since the region has changed size, we will encounter the boundary at a different time than before.)
+- LifeForm::set_course and LifeForm::set_speed - These functions should cancel any pending border_cross event, update the current position of the object and then schedule a new border_cross event based on the new course and speed. Note that an object that is stationary will never cross a border.
   4. Creation of LifeForms: LifeForms cannot be created spontaneously and just expect to be simulated. There are two ways that LifeForms can be created. First, they can be created by the LifeForm::create_life method during initialization. The other way that objects can be created is by calling reproduce.
 
 ###Rules of the Game
