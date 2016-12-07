@@ -108,4 +108,4 @@ This project is to complete the simulation infrastructure that we get from the i
   5. Aging: Objects must eventually die if they don't eat. This is true even if they act like rocks and don't move and don't perceive. Not all LifeForms are born at the same time (some are children of other LifeForms) and so they shouldn't be penalized at the same time.
   6. Reproduction: When a LifeForm reproduces, the energy from the parent LifeForm is divided in half. This amount of energy is given to both the parent and the child. Then, the fractional reproduce_cost is subtracted from both the parent and the child. For example, a LifeForm with 100 energy that reproduces will produce a child that has 50 * (1.0 - reproduce_cost) energy. The parent will have the same energy as the child. As a special rule, do not allow an object to reproduce faster than min_reproduce_time.
   
-Here is how I implemented [LifeForm.cpp](./lab2/LifeForm.cpp).
+Here is how I implemented [LifeForm.cpp](./lab3/LifeForm.cpp).
